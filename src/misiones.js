@@ -56,6 +56,17 @@ export function totalPedido(pedido) {
 // Un estado que no existe también es false.
 // Pista: ESTADOS ya es un arreglo ordenado. ¿Qué te dice indexOf?
 export function puedeTransicionar(actual, nuevo) {
+  // Encontrar las posiciones de ambos estados en el arreglo ordenado ESTADOS
+  const indexActual = ESTADOS.indexOf(actual);
+  const indexNuevo = ESTADOS.indexOf(nuevo);
+
+  // Si alguno de los dos estados no existe (da -1), la transición no es válida
+  if (indexActual === -1 || indexNuevo === -1) {
+    return false;
+  }
+
+  // El nuevo estado debe ser exactamente el siguiente paso inmediato (indexActual + 1)
+  return indexNuevo === indexActual + 1;git 
   return true // TODO: hoy acepta cualquier cosa. ¿Qué tan grave sería eso en producción?
 }
 

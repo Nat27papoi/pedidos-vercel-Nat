@@ -82,20 +82,35 @@ export function puedeTransicionar(actual, nuevo) {
 //                         correo: algo@algo.algo   (el email es opcional)
 // Pista: '55 1234-5678'.replace(/[\s-]/g, '')   y   /^\d{10}$/.test(...)
 export function validarCliente(cliente) {
-  const errores = []
+const errores = [];
 
-  const nombre = String(cliente?.nombre ?? '').trim()
-  if (!nombre) errores.push('nombre_requerido')
-
-  const telefono = String(cliente?.telefono ?? '').replace(/[\s-]/g, '')
-  if (!/^\d{10}$/.test(telefono)) errores.push('telefono_invalido')
-
-  const email = String(cliente?.email ?? '').trim()
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errores.push('email_invalido')
+  // 1. Validar nombre: requerido o solo espacios
+  if (!cliente || !cliente.nombre || cliente.nombre.trim() === '') {
+    errores.push('nombre_requerido');
   }
 
-  return errores 
+  // 2. Validar teléfono: quitar espacios y guiones, debe tener exactamente 10 dígitos
+  if (!cliente || !cliente.telefono) {
+    errores.push('telefono_invalido');
+  } else {
+    // Reemplazamos todos los espacios y guiones globales
+    const telLimpio = cliente.telefono.replace(/[\s-]/g, '');
+    // Verificamos que sean exactamente 10 dígitos numéricos
+    if (!/^\d{10}$/.test(telLimpio)) {
+      errores.push('telefono_invalido');
+    }
+  }
+
+  // 3. Validar email: si viene (no está vacío), debe tener formato válido
+  if (cliente && cliente.email && cliente.email.trim() !== '') {
+    // Expresión regular básica para validar correo
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailValido.test(cliente.email)) {
+      errores.push('email_invalido');
+    }
+  }
+
+  return errores;
 }
 
 // ----------------------------------------------------------------------------
@@ -105,8 +120,25 @@ export function validarCliente(cliente) {
 //   { registrado: 3, en_preparacion: 3, listo: 2, entregado: 2 }
 // Con una lista vacía, todos van en 0.
 export function resumenPorEstado(pedidos) {
-  return {} // TODO
-}
+// Inicializamos un objeto con todos los estados en 0
+  const resumen = {};
+  ESTADOS.forEach((estado) => {
+    resumen[estado] = 0;
+  });
+
+  // Si no hay pedidos o no es un arreglo válido, devolvemos el objeto con ceros
+  if (!Array.isArray(pedidos)) {
+    return resumen;
+  }
+
+  // Contamos cada pedido según su estado actual
+  pedidos.forEach((pedido) => {
+    if (resumen.hasOwnProperty(pedido.estado)) {
+      resumen[pedido.estado] += 1;
+    }
+  });
+
+  return resumen;}
 
 // ----------------------------------------------------------------------------
 // MISIÓN 5 · RF5 — Buscar pedidos por nombre de cliente
@@ -117,7 +149,31 @@ export function resumenPorEstado(pedidos) {
 // Pista: 'Ramírez'.normalize('NFD').replace(/[̀-ͯ]/g, '')
 //        Investiga qué hace NFD. Es un problema real en sistemas en español.
 export function buscarPedidos(pedidos, texto) {
-  return [] // TODO
+  // Si no hay lista de pedidos, devolvemos un arreglo vacío
+  if (!Array.isArray(pedidos)) {
+    return [];
+  }
+
+  // Si el texto está vacío o solo contiene espacios, devolvemos todos los pedidos
+  if (!texto || texto.trim() === '') {
+    return pedidos;
+  }
+
+  // Función auxiliar para normalizar texto (quitar acentos y pasar a minúsculas)
+  const normalizar = (str) =>
+    str
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+  const textoBusqueda = normalizar(texto);
+
+  // Filtramos los pedidos cuyo cliente contiene el texto buscado
+  return pedidos.filter((pedido) => {
+    const clienteNormalizado = normalizar(pedido.cliente);
+    return clienteNormalizado.includes(textoBusqueda);
+  });
+
 }
 
 // ----------------------------------------------------------------------------
@@ -129,5 +185,37 @@ export function buscarPedidos(pedidos, texto) {
 // Orden: total de mayor a menor; si empatan, por nombre alfabético.
 // Pista: un objeto acumulador, luego Object.entries, map y sort.
 export function topClientes(pedidos, n) {
-  return [] // TODO
+if (!Array.isArray(pedidos) || pedidos.length === 0 || !n) {
+    return [];
+  }
+
+  // 1. Objeto acumulador para sumar el total por cada cliente
+  const acumulado = {};
+
+  pedidos.forEach((pedido) => {
+    const cliente = pedido.cliente;
+    const totalDelPedido = totalPedido(pedido); // Reutilizamos totalPedido
+
+    if (!acumulado[cliente]) {
+      acumulado[cliente] = 0;
+    }
+    acumulado[cliente] += totalDelPedido;
+  });
+
+  // 2. Convertir a arreglo con Object.entries y mapear al formato requerido
+  const listaClientes = Object.entries(acumulado).map(([cliente, total]) => ({
+    cliente,
+    total: Math.round(total * 100) / 100 // Redondear por seguridad
+  }));
+
+  // 3. Ordenar: de mayor a menor total; si empatan, por orden alfabético del cliente
+  listaClientes.sort((a, b) => {
+    if (b.total !== a.total) {
+      return b.total - a.total; // Mayor a menor
+    }
+    return a.cliente.localeCompare(b.cliente); // Alfabético en caso de empate
+  });
+
+  // 4. Devolver solo los primeros `n` clientes
+  return listaClientes.slice(0, n);
 }

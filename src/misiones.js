@@ -95,7 +95,7 @@ export function validarCliente(cliente) {
     errores.push('email_invalido')
   }
 
-  return [] // TODO
+  return errores 
 }
 
 // ----------------------------------------------------------------------------
